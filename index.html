@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obsidian Protocol | Terminal</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* Your existing CSS for the Vessel, Glassmorphism, and Dark Mode goes here */
+        body { background: #0a0a0a; color: #00ffcc; font-family: monospace; }
+        .dashboard { padding: 20px; border: 1px solid #333; margin: 20px; border-radius: 8px; }
+        input { background: #1a1a1a; border: 1px solid #00ffcc; color: #fff; padding: 10px; }
+        button { background: #00ffcc; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <h2>// OBSIDIAN_PROTOCOL_LOGIN</h2>
+        <input type="email" id="u-email" placeholder="ENTER_AGENT_EMAIL">
+        <button onclick="handleAuth()">INITIATE_SEQUENCE</button>
+        <hr style="border: 0.5px solid #333; margin: 20px 0;">
+        <div id="stats">
+            <p>AGENT: <span id="display-email">GUEST_ID</span></p>
+            <p>FOCUS_POINTS: <span id="display-fp">0</span></p>
+            <p>STRIKES_REMAINING: <span id="display-strikes">3</span></p>
+        </div>
+    </div>
+
+    <script>
+        // 2. CONFIGURATION (PASTE YOUR FIREBASE KEYS HERE)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:12345:web:abcde"
+        };
+
+        // 3. Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Variables for your app logic
+        let fp = 0;
+        let strikes = 3;
+
+        // 4. HANDLE LOGIN (Sends the Email)
+        function handleAuth() {
+            const email = document.getElementById('u-email').value;
+            const actionCodeSettings = {
+                url: window.location.href, // Returns user back to this exact page
+                handleCodeInApp: true
+            };
+
+            auth.sendSignInLinkToEmail(email, actionCodeSettings)
+                .then(() => {
+                    window.localStorage.setItem('emailForSignIn', email);
+                    alert("ACCESS LINK SENT. Check your transmission portal (Email).");
+                })
+                .catch((error) => alert("SIGNAL ERROR: " + error.message));
+        }
+
+        // 5. CATCH THE LINK (When user returns from email)
+        if (auth.isSignInWithEmailLink(window.location.href)) {
+            let email = window.localStorage.getItem('emailForSignIn');
+            if (!email) email = window.prompt('Please confirm your email:');
+
+            auth.signInWithEmailLink(email, window.location.href)
+                .then((result) => {
+                    window.localStorage.removeItem('emailForSignIn');
+                    console.log("Logged in as:", result.user.email);
+                    // Automatically loads stats after login
+                })
+                .catch((err) => console.error(err));
+        }
+
+        // 6. SYNC DATA (Automatic Cloud Save/Load)
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('display-email').innerText = user.email;
+                
+                // Load existing stats from Firestore
+                db.collection("users").doc(user.email).get().then((doc) => {
+                    if (doc.exists) {
+                        fp = doc.data().focusPoints || 0;
+                        strikes = doc.data().strikes || 3;
+                        updateUI();
+                    } else {
+                        // Create new user profile if it doesn't exist
+                        saveToCloud(0, 3);
+                    }
+                });
+            }
+        });
+
+        function saveToCloud(points, currentStrikes) {
+            const user = auth.currentUser;
+            if (user) {
+                db.collection("users").doc(user.email).set({
+                    focusPoints: points,
+                    strikes: currentStrikes,
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('display-fp').innerText = fp;
+            document.getElementById('display-strikes').innerText = strikes;
+        }
+
+        // Example trigger: call saveToCloud(fp, strikes) whenever a session ends!
+    </script>
+</body>
+</html>
