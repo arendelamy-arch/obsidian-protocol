@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +35,7 @@
     </div>
 
     <script>
-        // 1. CONFIGURATION
+        // 1. CONFIGURATION (Using your registered app values)
         const firebaseConfig = {
             apiKey: "AIzaSyACSD27YtmNpdXp4W3yngnOBUwTMxXDwV8",
             authDomain: "obsidan-protcol.firebaseapp.com",
@@ -55,7 +56,6 @@
             if(!email) return alert("INPUT_REQUIRED: Enter Agent Email");
 
             const actionCodeSettings = {
-                // Must be the exact URL of your GitHub Page
                 url: window.location.href, 
                 handleCodeInApp: true
             };
@@ -66,16 +66,13 @@
                     alert("TRANSMISSION_SENT. Check your email for the access link.");
                 })
                 .catch((error) => {
-                    console.error("Auth Error:", error.code, error.message);
                     alert("SIGNAL ERROR [" + error.code + "]: " + error.message);
                 });
         }
 
-        // 4. Complete Sign-In (When returning from email)
+        // 4. Complete Sign-In (When returning from email link)
         if (auth.isSignInWithEmailLink(window.location.href)) {
             let email = window.localStorage.getItem('emailForSignIn');
-            
-            // If the user opened the link on a different device/browser
             if (!email) {
                 email = window.prompt('Please provide your email for confirmation:');
             }
@@ -83,17 +80,14 @@
             auth.signInWithEmailLink(email, window.location.href)
                 .then((result) => {
                     window.localStorage.removeItem('emailForSignIn');
-                    // Clean the URL hash/query
                     window.history.replaceState({}, document.title, window.location.pathname);
-                    console.log("Logged in successfully:", result.user.email);
                 })
                 .catch((error) => {
-                    console.error("Link Error:", error.code);
-                    alert("LINK_ERROR: The link may have expired or was already used.");
+                    alert("LINK_ERROR: " + error.message);
                 });
         }
 
-        // 5. Observer to load data
+        // 5. Observer to load agent data
         auth.onAuthStateChanged((user) => {
             if (user) {
                 document.getElementById('display-email').innerText = user.email;
